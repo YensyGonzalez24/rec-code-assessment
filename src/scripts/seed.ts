@@ -9,7 +9,7 @@ async function main() {
   await prisma.table.deleteMany({});
   await prisma.restaurant.deleteMany({});
 
-  // Create eaters with meaningful names and multiple dietary restrictions
+  // Create eaters with multiple dietary restrictions
   const eatersData = [
     { name: 'Alice', dietaryRestrictions: ['Vegan', 'Gluten-Free'] },
     { name: 'Bob', dietaryRestrictions: ['Vegetarian', 'Paleo'] },
@@ -23,7 +23,7 @@ async function main() {
 
   await prisma.eater.createMany({ data: eatersData });
 
-  // Create restaurants with meaningful names and multiple endorsements
+  // Create restaurants with multiple endorsements
   const restaurantsData = [
     {
       name: 'Green Garden',
@@ -53,7 +53,7 @@ async function main() {
     const tableTypes = [2, 4, 6];
 
     tableTypes.forEach((type) => {
-      const count = Math.floor(Math.random() * 6); // random number up to 5
+      const count = Math.floor(Math.random() * 6);
       for (let i = 0; i < count; i++) {
         tablesData.push({
           capacity: type,

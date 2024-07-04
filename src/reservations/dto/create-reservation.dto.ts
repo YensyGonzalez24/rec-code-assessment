@@ -6,7 +6,7 @@ export class CreateReservationDto {
   startTime: Date;
 
   @IsDate()
-  endTime: Date;
+  endTime?: Date;
 
   @IsUUID(4, { message: 'the owner userId must be a valid UUID.' })
   @IsNotEmpty()

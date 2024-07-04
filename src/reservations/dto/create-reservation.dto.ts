@@ -1,6 +1,4 @@
-import { Type } from 'class-transformer';
-import { IsDate, IsString, IsArray, IsInt, IsNotEmpty } from 'class-validator';
-import { UserIdDto } from '../../eaters/dto/userId.dto';
+import { IsDate, IsArray, IsInt, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateReservationDto {
   @IsDate()
@@ -10,18 +8,21 @@ export class CreateReservationDto {
   @IsDate()
   endTime: Date;
 
-  @Type(() => UserIdDto)
+  @IsUUID(4, { message: 'the owner userId must be a valid UUID.' })
   @IsNotEmpty()
-  ownerId: UserIdDto;
+  ownerId: string;
 
   @IsArray()
-  @Type(() => UserIdDto)
-  invitees: UserIdDto[];
+  @IsUUID(4, {
+    each: true,
+    message: 'the invitees userId must be a valid UUID.',
+  })
+  invitees: string[];
 
   @IsInt()
   additionalGuests: number;
 
-  @IsString()
+  @IsUUID(4, { message: 'the owner userId must be a valid UUID.' })
   @IsNotEmpty()
   tableId: string;
 }

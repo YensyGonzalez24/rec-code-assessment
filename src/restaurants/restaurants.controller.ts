@@ -8,8 +8,13 @@ export class RestaurantsController {
 
   @Get()
   async getRestaurants(@Body() searchRestaurantsDto: SearchRestaurantsDto) {
-    console.log(searchRestaurantsDto);
-
-    return this.restaurantsService.getRestaurants(null, null, null);
+    return this.restaurantsService.getFilteredRestaurants({
+      eaterIds: [
+        searchRestaurantsDto.ownerId,
+        ...searchRestaurantsDto.invitees,
+      ],
+      additionalGuests: searchRestaurantsDto.additionalGuests,
+      reservationTime: searchRestaurantsDto.reservationTime,
+    });
   }
 }

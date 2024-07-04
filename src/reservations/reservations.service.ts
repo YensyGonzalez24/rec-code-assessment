@@ -6,15 +6,15 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 export class ReservationsService {
   constructor(private prisma: PrismaService) {}
 
-  async getAllReservations() {
-    console.log('Getting all reservations ...');
+  async createReservation(data: CreateReservationDto) {
+    console.log(data);
+    console.log('Creating reservation...');
 
     return true;
   }
 
-  async createReservation(data: CreateReservationDto) {
-    console.log(data);
-    console.log('Creating reservation...');
+  async getAllReservations() {
+    console.log('Getting all reservations ...');
 
     return true;
   }

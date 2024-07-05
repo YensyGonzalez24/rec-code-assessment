@@ -1,12 +1,20 @@
-import { IsDate, IsArray, IsInt, IsNotEmpty, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsUUID,
+  IsDateString,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateReservationDto {
-  @IsDate()
+  @IsDateString()
   @IsNotEmpty()
-  startTime: Date;
+  startTime: string;
 
-  @IsDate()
-  endTime?: Date;
+  @IsDateString()
+  @IsOptional()
+  endTime?: string;
 
   @IsUUID(4, { message: 'the owner userId must be a valid UUID.' })
   @IsNotEmpty()

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EatersService } from '../eaters/eaters.service';
 import { SearchRestaurantsDto } from './dto/search-restaurants.dto';
+import { ReservationTimeError } from '../common/errors/restaurant-errors';
 
 @Injectable()
 export class RestaurantsService {
@@ -10,14 +11,25 @@ export class RestaurantsService {
     private eatersService: EatersService,
   ) {}
 
+  /**
+   * Retrieves filtered restaurants based on search criteria.
+   * @param ownerId - The ID of the owner.
+   * @param invitees - The list of invitees.
+   * @param additionalGuests - The number of additional guests.
+   * @param reservationTime - The reservation time.
+   * @returns An array of available tables for the given search criteria.
+   * @throws ReservationTimeError if the reservation time is in the past.
+   */
   async getFilteredRestaurants({
     ownerId,
     invitees,
     additionalGuests,
     reservationTime,
   }: SearchRestaurantsDto) {
-    if (reservationTime < new Date()) {
-      throw new Error('Reservation time must be in the future.');
+    const reservationTimeDate = new Date(reservationTime);
+
+    if (reservationTimeDate < new Date()) {
+      throw new ReservationTimeError();
     }
 
     const { totalGuests, dietaryRestrictions } =
@@ -27,7 +39,11 @@ export class RestaurantsService {
         additionalGuests,
       });
 
+    console.log('restrictions', dietaryRestrictions);
+
     const restaurants = await this.getAllRestaurants();
+
+    console.log('restaurants', restaurants);
 
     const matchingRestaurants = this.filterRestaurantsByDietaryRestrictions(
       restaurants,
@@ -49,16 +65,38 @@ export class RestaurantsService {
 
     const availableTables = this.filterTablesByReservationTime(
       tableResults,
-      reservationTime,
+      reservationTimeDate,
     );
 
     return availableTables.length > 0 ? availableTables : [];
   }
 
+  /**
+   * Retrieves all restaurants.
+   * @returns An array of all restaurants.
+   */
   async getAllRestaurants() {
     return this.prisma.restaurant.findMany();
   }
 
+  /**
+   * Retrieves all restaurants with their tables.
+   * @returns An array of all restaurants with their tables.
+   */
+  async getAllRestaurantsWithTables() {
+    return this.prisma.restaurant.findMany({
+      include: {
+        tables: true,
+      },
+    });
+  }
+
+  /**
+   * Retrieves tables for a specific restaurant based on capacity.
+   * @param restaurantId - The ID of the restaurant.
+   * @param capacity - The capacity of the tables.
+   * @returns An array of tables for the given restaurant and capacity.
+   */
   async getTablesForRestaurant({
     restaurantId,
     capacity,
@@ -70,7 +108,7 @@ export class RestaurantsService {
       where: {
         restaurantId,
         capacity: {
-          gt: capacity,
+          gte: capacity,
         },
       },
       include: {
@@ -79,6 +117,12 @@ export class RestaurantsService {
     });
   }
 
+  /**
+   * Filters restaurants based on dietary restrictions.
+   * @param restaurants - The array of restaurants to filter.
+   * @param dietaryRestrictions - The array of dietary restrictions.
+   * @returns An array of restaurants that meet the dietary restrictions.
+   */
   private filterRestaurantsByDietaryRestrictions(
     restaurants: any[],
     dietaryRestrictions: string[],
@@ -90,6 +134,12 @@ export class RestaurantsService {
     });
   }
 
+  /**
+   * Retrieves restaurants with available tables for the given search criteria.
+   * @param matchingRestaurants - The array of restaurants that meet the dietary restrictions.
+   * @param totalGuests - The total number of guests.
+   * @returns An array of restaurants with available tables.
+   */
   private async getRestaurantsWithAvailableTables(
     matchingRestaurants: any[],
     totalGuests: number,
@@ -111,6 +161,12 @@ export class RestaurantsService {
     return (await Promise.all(tablesPromises)).filter(Boolean);
   }
 
+  /**
+   * Filters tables based on reservation time.
+   * @param tableResults - The array of tables to filter.
+   * @param reservationTime - The reservation time.
+   * @returns An array of tables that are available at the given reservation time.
+   */
   private filterTablesByReservationTime(
     tableResults: any[],
     reservationTime: Date,

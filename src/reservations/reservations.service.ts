@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { EatersService } from '../eaters/eaters.service';
 import { Reservation } from '@prisma/client';
+import {
+  ConflictingReservationError,
+  DietaryRestrictionsError,
+  TableAlreadyReservedError,
+  TableCapacityError,
+  TableNotFoundError,
+} from '../common/errors';
 
 @Injectable()
 export class ReservationsService {
@@ -11,9 +18,17 @@ export class ReservationsService {
     private eatersService: EatersService,
   ) {}
 
+  /**
+   * Creates a new reservation based on the provided data.
+   *
+   * @param data - The data for creating the reservation.
+   * @returns The newly created reservation.
+   */
   async createNewReservation(data: CreateReservationDto) {
-    const { startTime, ownerId, invitees, tableId, additionalGuests, endTime } =
-      data;
+    const { ownerId, invitees, tableId, additionalGuests } = data;
+
+    const startTime = new Date(data.startTime);
+    const endTime = data.endTime ? new Date(data.endTime) : null;
 
     const { eaterIds, totalGuests, dietaryRestrictions } =
       await this.eatersService.getEatersInfo({
@@ -43,6 +58,13 @@ export class ReservationsService {
     return newReservation;
   }
 
+  /**
+   * Checks if the provided dietary restrictions are covered by the restaurant's endorsements.
+   * Throws a DietaryRestrictionsError if any dietary restrictions are not covered.
+   *
+   * @param dietaryRestrictions - The dietary restrictions to check.
+   * @param table - The table object containing the restaurant's endorsements.
+   */
   private checkDietaryRestrictions({
     dietaryRestrictions,
     table,
@@ -55,12 +77,20 @@ export class ReservationsService {
     );
 
     if (uncoveredDietaryRestrictions.length > 0) {
-      throw new Error(
-        `The following dietary restrictions are not covered by ${table.restaurant.name}: ${uncoveredDietaryRestrictions.join(', ')}`,
+      throw new DietaryRestrictionsError(
+        uncoveredDietaryRestrictions,
+        table.restaurant.endorsements,
       );
     }
   }
 
+  /**
+   * Checks if any of the provided eaters have conflicting reservations at the given start time.
+   * Throws a ConflictingReservationError if any conflicts are found.
+   *
+   * @param startTime - The start time of the reservation.
+   * @param eaterIds - The IDs of the eaters to check.
+   */
   private async checkEaterAvailability({
     startTime,
     eaterIds,
@@ -68,7 +98,7 @@ export class ReservationsService {
     startTime: Date;
     eaterIds: string[];
   }) {
-    const existingReservations = await this.getReservatrionsByTimeAndUserId({
+    const existingReservations = await this.getReservationsByTimeAndUserId({
       startTime,
       userIds: eaterIds,
     });
@@ -93,31 +123,42 @@ export class ReservationsService {
 
       const message = uniqueUserIds.length > 1 ? 'users have' : 'user has';
 
-      throw new Error(
-        'The following ' +
-          message +
-          ' a conflicting reservation: ' +
-          userIdsString,
-      );
+      throw new ConflictingReservationError(userIdsString, message);
     }
   }
 
+  /**
+   * Checks if the table has enough capacity to accommodate the total number of guests.
+   * Throws a TableCapacityError if the table capacity is insufficient.
+   *
+   * @param tableId - The ID of the table to check.
+   * @param totalGuests - The total number of guests for the reservation.
+   * @returns The table object if it exists and has sufficient capacity.
+   * @throws TableNotFoundError if the table does not exist.
+   * @throws TableCapacityError if the table capacity is insufficient.
+   */
   private async checkTableCapacity({ tableId, totalGuests }) {
     const table = await this.getTableById(tableId);
 
     if (!table) {
-      throw new Error('Table not found');
+      throw new TableNotFoundError();
     }
 
     if (table.capacity < totalGuests) {
-      throw new Error(
-        `This table has a maximum capacity of ${table.capacity} guests and your party is of ${totalGuests}.`,
-      );
+      throw new TableCapacityError(table.capacity, totalGuests);
     }
 
     return table;
   }
 
+  /**
+   * Checks if the table is already reserved at the given start time.
+   * Throws a TableAlreadyReservedError if the table is already reserved.
+   *
+   * @param startTime - The start time of the reservation.
+   * @param table - The table object containing the reservations.
+   * @throws TableAlreadyReservedError if the table is already reserved.
+   */
   private async checkTableAvailability({
     startTime,
     table,
@@ -131,14 +172,21 @@ export class ReservationsService {
         startTime.getTime() <= reservation.endTime.getTime();
 
       if (isStartTimeMatch) {
-        throw new Error('This table is already reserved at this time.');
+        throw new TableAlreadyReservedError();
       }
     });
   }
 
   //Prisma query and mutation methods
 
-  async getReservatrionsByTimeAndUserId({
+  /**
+   * Retrieves reservations that match the given start time and user IDs.
+   *
+   * @param startTime - The start time of the reservations.
+   * @param userIds - The IDs of the users to filter the reservations.
+   * @returns An array of reservations that match the criteria.
+   */
+  async getReservationsByTimeAndUserId({
     startTime,
     userIds,
   }: {
@@ -179,10 +227,27 @@ export class ReservationsService {
     });
   }
 
+  /**
+   * Retrieves all reservations.
+   *
+   * @returns An array of all reservations.
+   */
   async getAllReservations() {
-    return this.prisma.reservation.findMany();
+    return this.prisma.reservation.findMany({
+      include: {
+        invitees: true,
+        table: true,
+        owner: true,
+      },
+    });
   }
 
+  /**
+   * Retrieves a table by its ID.
+   *
+   * @param id - The ID of the table.
+   * @returns The table object if it exists, null otherwise.
+   */
   async getTableById(id: string) {
     return this.prisma.table.findUnique({
       where: {
@@ -195,13 +260,27 @@ export class ReservationsService {
     });
   }
 
+  /**
+   * Deletes a reservation by its ID.
+   *
+   * @param id - The ID of the reservation to delete.
+   * @returns The deleted reservation.
+   */
   async deleteReservation(id: string) {
-    console.log(id);
-    console.log('Deleting reservation...');
-
-    return true;
+    return this.prisma.reservation.delete({
+      where: {
+        id,
+      },
+    });
   }
 
+  /**
+   * Creates a new reservation with the provided data.
+   *
+   * @param reservation - The reservation data.
+   * @param invitees - The IDs of the invitees for the reservation.
+   * @returns The newly created reservation.
+   */
   async createReservation(
     reservation: Omit<Reservation, 'id'>,
     invitees: string[],

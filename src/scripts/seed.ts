@@ -27,18 +27,18 @@ async function main() {
   const restaurantsData = [
     {
       name: 'Green Garden',
-      endorsements: ['Vegan-Friendly', 'Gluten-Free-Options'],
+      endorsements: ['Vegan', 'Gluten-Free'],
     },
     {
       name: 'Veggie Delight',
-      endorsements: ['Vegetarian-Friendly', 'Paleo-Friendly'],
+      endorsements: ['Vegetarian', 'Paleo'],
     },
-    { name: 'Paleo Palace', endorsements: ['Paleo-Friendly'] },
-    { name: 'Gluten-Free Haven', endorsements: ['Gluten-Free-Options'] },
+    { name: 'Paleo Palace', endorsements: ['Paleo'] },
+    { name: 'Gluten-Free Haven', endorsements: ['Gluten-Free'] },
     { name: 'Mixed Grill', endorsements: [] },
     {
       name: 'Cuisine Fusion',
-      endorsements: ['Vegan-Friendly', 'Vegetarian-Friendly'],
+      endorsements: ['Vegan', 'Vegetarian'],
     },
   ];
 

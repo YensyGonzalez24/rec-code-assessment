@@ -5,6 +5,8 @@ import { ReservationsController } from '../reservations.controller';
 import { eaters, reservations, restaurants, tables } from './mockData';
 import { EatersService } from '../../eaters/eaters.service';
 import { Reservation } from '@prisma/client';
+import { HttpException } from '@nestjs/common';
+import { ErrorCodes } from '../../common/utils/constants';
 
 describe('Reservation Management', () => {
   let reservationController: ReservationsController;
@@ -12,6 +14,13 @@ describe('Reservation Management', () => {
   let eaterService: EatersService;
 
   const createdReservations = [];
+
+  const {
+    conflictingReservation,
+    dietaryRestrictions,
+    tableCapacity,
+    tableAlreadyReserved,
+  } = ErrorCodes;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -49,10 +58,33 @@ describe('Reservation Management', () => {
 
     jest
       .spyOn(reservationService, 'getAllReservations')
-      .mockImplementation(async () => reservations);
+      .mockImplementation(async () => {
+        return reservations.map((reservation) => {
+          const table = tables.find((t) => t.id === reservation.tableId);
+          const owner = eaters.find((e) => e.id === reservation.ownerId);
+
+          if (!table || !owner) {
+            throw new Error('Table or Owner not found');
+          }
+
+          return {
+            ...reservation,
+            table: {
+              id: table.id,
+              capacity: table.capacity,
+              restaurantId: table.restaurantId,
+            },
+            owner: {
+              id: owner.id,
+              name: owner.name,
+              dietaryRestrictions: owner.dietaryRestrictions,
+            },
+          };
+        });
+      });
 
     jest
-      .spyOn(reservationService, 'getReservatrionsByTimeAndUserId')
+      .spyOn(reservationService, 'getReservationsByTimeAndUserId')
       .mockImplementation(
         async ({
           startTime,
@@ -132,68 +164,106 @@ describe('Reservation Management', () => {
   describe('Reservation Listing', () => {
     it('should get all reservations', async () => {
       const allReservations = await reservationController.getAllReservations();
-      expect(allReservations).toEqual(reservations);
+
+      const expectedReservations = reservations.map((reservation) => {
+        const table = tables.find((t) => t.id === reservation.tableId);
+        const owner = eaters.find((e) => e.id === reservation.ownerId);
+
+        return {
+          ...reservation,
+          table: {
+            id: table.id,
+            capacity: table.capacity,
+            restaurantId: table.restaurantId,
+          },
+          owner: {
+            id: owner.id,
+            name: owner.name,
+            dietaryRestrictions: owner.dietaryRestrictions,
+          },
+        };
+      });
+
+      expect(allReservations).toEqual(expectedReservations);
     });
   });
 
   describe('Reservation by Single User', () => {
     it('should throw an error if the user has a conflicting reservation', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-07-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-07-03T20:30:00').toISOString(),
           ownerId: 'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
           invitees: [],
           additionalGuests: 0,
           tableId: 'e34ed028-29b6-4208-9c16-d5c9d6d4c96f',
-        }),
-      ).rejects.toThrow(
-        'The following user has a conflicting reservation: e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(conflictingReservation);
+      }
     });
 
     it('should throw an error if any user has a conflicting reservation as a reservation invitee', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-09-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-09-03T20:30:00').toISOString(),
           ownerId: '7be598bc-995f-47da-9469-336c48ef3511',
           invitees: [],
           additionalGuests: 0,
           tableId: 'a3f45e7c-4b5h-449b-956e-2af496b62d25',
-        }),
-      ).rejects.toThrow(
-        'The following user has a conflicting reservation: 7be598bc-995f-47da-9469-336c48ef3511',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(conflictingReservation);
+      }
     });
 
     it('should throw an error if the user has dietary restrictions that the restaurant does not meet', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-10-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-10-03T20:30:00').toISOString(),
           ownerId: 'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
           invitees: [],
           additionalGuests: 0,
           tableId: '7d9697a0-de0d-49c5-94e8-08b1270bfb39',
-        }),
-      ).rejects.toThrow(
-        'The following dietary restrictions are not covered by Paleo Heaven: Gluten-Free',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(dietaryRestrictions);
+      }
     });
 
     it('should throw an error if the restaurant no longer has that time spot available for that table', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-12-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-12-03T20:30:00').toISOString(),
           ownerId: 'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
           invitees: [],
           additionalGuests: 0,
           tableId: 'ed9750c9-9271-4611-a6f4-18885d250ef3',
-        }),
-      ).rejects.toThrow('This table is already reserved at this time.');
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(tableAlreadyReserved);
+      }
     });
 
     it('should successfully create a reservation for a single user with dietary restrictions at a given time', async () => {
       const reservation = await reservationController.createNewReservation({
-        startTime: new Date('2027-10-03T20:30:00'),
+        startTime: new Date('2027-10-03T20:30:00').toISOString(),
         ownerId: '7be598bc-995f-47da-9469-336c48ef3511',
         invitees: [],
         additionalGuests: 0,
@@ -214,37 +284,45 @@ describe('Reservation Management', () => {
 
   describe('Reservation by Multiple Users', () => {
     it('should throw an error if any user has a conflicting reservation as a reservation owner', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-08-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-08-03T20:30:00').toISOString(),
           ownerId: 'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
           invitees: ['7be598bc-995f-47da-9469-336c48ef3511'],
           additionalGuests: 0,
           tableId: 'a3f45e7c-4b5h-449b-956e-2af496b62d25',
-        }),
-      ).rejects.toThrow(
-        'The following users have a conflicting reservation: e7393c5c-19c8-45d5-bf5a-8fc76839d74d, 7be598bc-995f-47da-9469-336c48ef3511',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(conflictingReservation);
+      }
     });
 
     it('should throw an error if the selected table cannot seat the party size', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-10-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-10-03T20:30:00').toISOString(),
           ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
           invitees: ['e7393c5c-19c8-45d5-bf5a-8fc76839d74d'],
           additionalGuests: 6,
           tableId: 'a3f45e7c-4b5h-449b-956e-2af496b62d25',
-        }),
-      ).rejects.toThrow(
-        'This table has a maximum capacity of 4 guests and your party is of 8.',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(tableCapacity);
+      }
     });
 
     it('should throw an error if any user has dietary restrictions that the restaurant does not meet', async () => {
-      await expect(
-        reservationController.createNewReservation({
-          startTime: new Date('2026-10-03T20:30:00'),
+      try {
+        await reservationController.createNewReservation({
+          startTime: new Date('2026-10-03T20:30:00').toISOString(),
           ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
           invitees: [
             'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
@@ -252,15 +330,19 @@ describe('Reservation Management', () => {
           ],
           additionalGuests: 0,
           tableId: '26f44073-ae5a-4812-be87-f7f1cd83609d',
-        }),
-      ).rejects.toThrow(
-        'The following dietary restrictions are not covered by Paleo Heaven: Vegan, Gluten-Free',
-      );
+        });
+
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = error.getResponse();
+        expect(response.code).toMatch(dietaryRestrictions);
+      }
     });
 
     it('should successfully create a reservation for multiple users with dietary restrictions at a given time', async () => {
       const reservation = await reservationController.createNewReservation({
-        startTime: new Date('2026-07-03T20:30:00'),
+        startTime: new Date('2026-07-03T20:30:00').toISOString(),
         ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
         invitees: ['7be598bc-995f-47da-9469-336c48ef3511'],
         additionalGuests: 0,

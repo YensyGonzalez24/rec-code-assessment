@@ -16,7 +16,7 @@ class SearchRestaurantsDto {
   additionalGuests: number;
 
   @IsNotEmpty()
-  reservationTime: Date;
+  reservationTime: string;
 }
 
 export { SearchRestaurantsDto };

@@ -1,73 +1,98 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Restaurant Booking API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This project implements a backend service for managing restaurant bookings, including handling dietary restrictions, table availability, and reservations. The service is built with NestJS, Prisma ORM, and TypeScript.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- Find restaurants with available tables that meet the dietary restrictions of users.
+- Create reservations for a group of users at a specified time.
+- Delete existing reservations.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prerequisites
 
-## Installation
+- Node.js (v14.x or later)
+- npm (v6.x or later)
+- Docker (for running the PostgreSQL database)
 
-```bash
-$ npm install
-```
+## Setup
 
-## Running the app
+Follow these steps to set up and run the project:
 
-```bash
-# development
-$ npm run start
+### 1. Clone the Repository
 
-# watch mode
-$ npm run start:dev
+`
+git clone https://github.com/yourusername/restaurant-booking-api.git
+cd restaurant-booking-api
+`
 
-# production mode
-$ npm run start:prod
-```
+### 2. Install Dependencies
 
-## Test
+`npm install`
 
-```bash
-# unit tests
-$ npm run test
+### 3. Set Up Environment Variables
 
-# e2e tests
-$ npm run test:e2e
+Create a .env file in the root directory and add the following environment variables:
 
-# test coverage
-$ npm run test:cov
-```
+`DATABASE_URL="postgresql://user:password@localhost:5432/restaurant-booking"`
 
-## Support
+Make sure to replace user, password, and localhost:5432 with your PostgreSQL database credentials and host.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 4. Start the PostgreSQL Database
 
-## Stay in touch
+If you have Docker installed, you can start a PostgreSQL container with the following command:
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+`docker run --name restaurant-booking-db -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=restaurant-booking -p 5432:5432 -d postgres`
 
-## License
+### 5. Run Database Migrations
 
-Nest is [MIT licensed](LICENSE).
+Use Prisma to set up the database schema:
+
+npx prisma migrate dev --name init
+
+### 6. Start the Development Server
+
+`npx prisma migrate dev --name init`
+
+## Running Tests
+
+Use the following command to run the tests:
+
+`npm run test`
+
+## API Endpoints
+
+#### Find restaurants
+
+`GET /restaurants`
+
+Parameters: None
+
+`POST /restaurants/search`
+
+Body:
+
+`eaterIds`: Array of eater IDs.
+`invitees`: Array of user IDs invited to the reservation.
+`additionalGuests`: Number of additional guests.
+`reservationTime`: Desired reservation time.
+
+#### Create Reservation
+
+`POST /reservations`
+
+Body:
+
+`startTime`: Reservation start time.
+`endTime`: Reservation end time. (optional)
+`ownerId`: ID of the user making the reservation.
+`invitees`: Array of user IDs invited to the reservation.
+`additionalGuests`: Number of additional guests.
+`tableId`: ID of the table to reserve.
+
+#### Delete Reservation
+
+`DELETE /reservations/:id`
+
+Parameters:
+
+`id`: ID of the reservation to delete.

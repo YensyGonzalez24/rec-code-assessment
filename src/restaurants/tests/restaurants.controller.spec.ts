@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RestaurantsController } from '../restaurants.controller';
 import { EatersService } from '../../eaters/eaters.service';
 import { eaters, restaurants, tables } from './mockData';
+import { ReservationTimeError, UserNotFoundError } from '../../common/errors';
+import { HttpStatus } from '@nestjs/common';
 
 describe('Restaurant Search', () => {
   let controller: RestaurantsController;
@@ -52,10 +54,12 @@ describe('Restaurant Search', () => {
         ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
         invitees: [],
         additionalGuests: 0,
-        reservationTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        reservationTime: new Date(
+          Date.now() + 3 * 60 * 60 * 1000,
+        ).toISOString(),
       });
 
-      expect(response).toEqual([]);
+      expect(response).toEqual({ data: [], message: 'No restaurants found' });
     });
 
     it('should return an empty list if no tables are available at the given time', async () => {
@@ -63,10 +67,10 @@ describe('Restaurant Search', () => {
         ownerId: 'e7393c5c-19c8-45d5-bf5a-8fc76839d74d',
         invitees: [],
         additionalGuests: 0,
-        reservationTime: new Date('2026-07-03T19:30:00'),
+        reservationTime: new Date('2026-07-03T19:30:00').toISOString(),
       });
 
-      expect(response).toEqual([]);
+      expect(response).toEqual({ data: [], message: 'No restaurants found' });
     });
 
     it("should return restaurants with available tables that meet the user's dietary restrictions and given time", async () => {
@@ -74,7 +78,7 @@ describe('Restaurant Search', () => {
         ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
         invitees: [],
         additionalGuests: 0,
-        reservationTime: new Date('2026-07-03T19:30:00'),
+        reservationTime: new Date('2026-07-03T19:30:00').toISOString(),
       });
 
       expect(result).toEqual([
@@ -105,10 +109,12 @@ describe('Restaurant Search', () => {
         ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
         invitees: ['e7393c5c-19c8-45d5-bf5a-8fc76839d74d'],
         additionalGuests: 0,
-        reservationTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        reservationTime: new Date(
+          Date.now() + 3 * 60 * 60 * 1000,
+        ).toISOString(),
       });
 
-      expect(response).toEqual([]);
+      expect(response).toEqual({ data: [], message: 'No restaurants found' });
     });
 
     it('should return an empty list if no tables are available for the group size', async () => {
@@ -116,10 +122,12 @@ describe('Restaurant Search', () => {
         ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
         invitees: [],
         additionalGuests: 6,
-        reservationTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        reservationTime: new Date(
+          Date.now() + 3 * 60 * 60 * 1000,
+        ).toISOString(),
       });
 
-      expect(response).toEqual([]);
+      expect(response).toEqual({ data: [], message: 'No restaurants found' });
     });
 
     it("should return restaurants with available tables that meet all users' dietary restrictions and given time", async () => {
@@ -127,7 +135,7 @@ describe('Restaurant Search', () => {
         ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
         invitees: ['7be598bc-995f-47da-9469-336c48ef3511'],
         additionalGuests: 3,
-        reservationTime: new Date('2026-07-03T19:30:00'),
+        reservationTime: new Date('2026-07-03T19:30:00').toISOString(),
       });
 
       expect(resultSingle).toEqual([
@@ -149,7 +157,7 @@ describe('Restaurant Search', () => {
         ownerId: '83348328-1043-41b6-96e8-884ad6407e00',
         invitees: ['7be598bc-995f-47da-9469-336c48ef3511'],
         additionalGuests: 2,
-        reservationTime: new Date('2026-07-03T19:30:00'),
+        reservationTime: new Date('2026-07-03T19:30:00').toISOString(),
       });
 
       expect(resultMultiple).toEqual([
@@ -181,20 +189,36 @@ describe('Restaurant Search', () => {
           ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
           invitees: ['non-existent-id'],
           additionalGuests: 0,
-          reservationTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+          reservationTime: new Date(
+            Date.now() + 3 * 60 * 60 * 1000,
+          ).toISOString(),
         }),
-      ).rejects.toThrow('The following user ids do not exist: non-existent-id');
+      ).rejects.toMatchObject({
+        response: {
+          code: new UserNotFoundError(['non-existent-id']).code,
+          message: new UserNotFoundError(['non-existent-id']).message,
+        },
+        status: HttpStatus.NOT_FOUND,
+      });
     });
 
     it('should return an error if the given time is invalid (e.g., in the past)', async () => {
-      await expect(
+      return await expect(
         controller.getRestaurants({
           ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
           invitees: [],
           additionalGuests: 0,
-          reservationTime: new Date(Date.now() - 3 * 60 * 60 * 1000),
+          reservationTime: new Date(
+            Date.now() - 3 * 60 * 60 * 1000,
+          ).toISOString(),
         }),
-      ).rejects.toThrow('Reservation time must be in the future.');
+      ).rejects.toMatchObject({
+        response: {
+          code: new ReservationTimeError().code,
+          message: new ReservationTimeError().message,
+        },
+        status: HttpStatus.BAD_REQUEST,
+      });
     });
   });
 });

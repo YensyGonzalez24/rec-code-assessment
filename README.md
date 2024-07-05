@@ -61,6 +61,12 @@ Use the following command to run the tests:
 
 ## API Endpoints
 
+#### Get all eaters
+
+`GET /eaters`
+
+Paramenters: None
+
 #### Find restaurants
 
 `GET /restaurants`
@@ -75,6 +81,12 @@ Body:
 `invitees`: Array of user IDs invited to the reservation.
 `additionalGuests`: Number of additional guests.
 `reservationTime`: Desired reservation time.
+
+#### Get all reservations 
+
+`GET /reservarions`
+
+Parameters: None
 
 #### Create Reservation
 

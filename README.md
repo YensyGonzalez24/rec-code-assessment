@@ -47,11 +47,11 @@ If you have Docker installed, you can start a PostgreSQL container with the foll
 
 Use Prisma to set up the database schema:
 
-npx prisma migrate dev --name init
+`npx prisma migrate dev --name init`
 
 ### 6. Start the Development Server
 
-`npx prisma migrate dev --name init`
+`npm run start:dev`
 
 ## Running Tests
 

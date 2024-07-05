@@ -12,8 +12,10 @@ export class ReservationsController {
   }
 
   @Post()
-  async createReservation(@Body() createReservationDto: CreateReservationDto) {
-    return this.reservationsService.createReservation(createReservationDto);
+  async createNewReservation(
+    @Body() createReservationDto: CreateReservationDto,
+  ) {
+    return this.reservationsService.createNewReservation(createReservationDto);
   }
 
   @Delete(':id')

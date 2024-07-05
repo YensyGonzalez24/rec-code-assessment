@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EatersService } from '../eaters/eaters.service';
+import { SearchRestaurantsDto } from './dto/search-restaurants.dto';
 
 @Injectable()
 export class RestaurantsService {
@@ -10,27 +11,23 @@ export class RestaurantsService {
   ) {}
 
   async getFilteredRestaurants({
-    eaterIds,
+    ownerId,
+    invitees,
     additionalGuests,
     reservationTime,
-  }: {
-    eaterIds: string[];
-    additionalGuests: number;
-    reservationTime: Date;
-  }) {
+  }: SearchRestaurantsDto) {
     if (reservationTime < new Date()) {
       throw new Error('Reservation time must be in the future.');
     }
 
-    const totalGuests = eaterIds.length + additionalGuests;
+    const { totalGuests, dietaryRestrictions } =
+      await this.eatersService.getEatersInfo({
+        ownerId,
+        invitees,
+        additionalGuests,
+      });
 
     const restaurants = await this.getAllRestaurants();
-    const eaters = await this.eatersService.getEatersById(eaterIds);
-    const dietaryRestrictions = this.getDietaryRestrictions(eaters);
-
-    if (eaters.length !== eaterIds.length) {
-      throw new Error('Some users do not exist in the database.');
-    }
 
     const matchingRestaurants = this.filterRestaurantsByDietaryRestrictions(
       restaurants,
@@ -80,10 +77,6 @@ export class RestaurantsService {
         reservations: true,
       },
     });
-  }
-
-  private getDietaryRestrictions(eaters: any[]) {
-    return eaters.flatMap((eater) => eater.dietaryRestrictions);
   }
 
   private filterRestaurantsByDietaryRestrictions(

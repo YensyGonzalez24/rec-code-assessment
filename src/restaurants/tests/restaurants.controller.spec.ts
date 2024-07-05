@@ -5,29 +5,12 @@ import { RestaurantsController } from '../restaurants.controller';
 import { EatersService } from '../../eaters/eaters.service';
 import { eaters, restaurants, tables } from './mockData';
 
-describe('RestaurantsController', () => {
-  let controller: RestaurantsController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [RestaurantsController],
-      providers: [RestaurantsService, PrismaService, EatersService],
-    }).compile();
-
-    controller = module.get<RestaurantsController>(RestaurantsController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-});
-
 describe('Restaurant Search', () => {
   let controller: RestaurantsController;
   let restaurantService: RestaurantsService;
   let eatersService: EatersService;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RestaurantsController],
       providers: [RestaurantsService, PrismaService, EatersService],
@@ -55,6 +38,12 @@ describe('Restaurant Search', () => {
             table.restaurantId === restaurantId && table.capacity >= capacity,
         ),
       );
+  });
+
+  describe('RestaurantsController', () => {
+    it('should be defined', () => {
+      expect(controller).toBeDefined();
+    });
   });
 
   describe('Restaurant Search by Single User', () => {
@@ -187,29 +176,25 @@ describe('Restaurant Search', () => {
 
   describe('Restaurant Search - Negative Cases', () => {
     it('should return an error if one of the users does not exist', async () => {
-      try {
-        await controller.getRestaurants({
+      await expect(
+        controller.getRestaurants({
           ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
           invitees: ['non-existent-id'],
           additionalGuests: 0,
           reservationTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
-        });
-      } catch (error) {
-        expect(error.message).toBe('Some users do not exist in the database.');
-      }
+        }),
+      ).rejects.toThrow('The following user ids do not exist: non-existent-id');
     });
 
     it('should return an error if the given time is invalid (e.g., in the past)', async () => {
-      try {
-        await controller.getRestaurants({
+      await expect(
+        controller.getRestaurants({
           ownerId: '47e9cad5-0a12-48eb-b31f-5efbae918b41',
           invitees: [],
           additionalGuests: 0,
           reservationTime: new Date(Date.now() - 3 * 60 * 60 * 1000),
-        });
-      } catch (error) {
-        expect(error.message).toBe('Reservation time must be in the future.');
-      }
+        }),
+      ).rejects.toThrow('Reservation time must be in the future.');
     });
   });
 });
